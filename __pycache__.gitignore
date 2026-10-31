@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+outputs/feature_stack.zarr/
+outputs/gt_features.parquet

@@ -1,0 +1,38 @@
+Label normalisation changed 22 crop labels:
+crop_raw     crop       
+Dragon       Dragonfruit     2
+Horse        Horse gram      1
+Promogrante  Pomegranate     1
+coconut      Coconut        18
+
+ASSUMPTIONS to confirm with field team: 'Dragon'->Dragonfruit, 'Horse'->Horse gram, 'Promogrante'->Pomegranate (all single-sample classes anyway).
+
+Dropped 1 exact duplicate row(s).
+
+Points inside district: 322/322; outside dropped: 0.
+
+Min distance to district edge 11275 m -> no district-edge mixed-pixel issue.
+
+12 points have a neighbour <20 m (same/adjacent S2 pixel): kept, but grouped together in spatial CV; pixel-level duplicates removed at extraction.
+
+Class counts after cleaning:
+crop
+Maize          99
+Ragi           74
+Arecanut       66
+Coconut        46
+Banana          9
+Cotton          7
+Onion           5
+Papaya          4
+Dragonfruit     3
+Soybean         2
+Horse gram      2
+Chilli          2
+Basil           1
+Pomegranate     1
+Marigold        1
+
+MAPPED classes (n>=20): ['Maize', 'Ragi', 'Arecanut', 'Coconut']. All others -> 'Other/unmodelled', NOT reported as mapped.
+
+GT convex hull = 831 km2 = 9.8% of district (8435 km2). Rest of district has ZERO GT.
