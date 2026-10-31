@@ -1,24 +1,43 @@
-# Chitradurga Kharif 2026 crop mapping - interim write-up
-**Status: Task A complete. Tasks B-E are implemented as code but not yet executed (no imagery access in the build environment). No accuracy or area figures exist yet; they must come from running the pipeline.**
+Chitradurga Kharif 2026 Crop Mapping MVP: Write-up
 
-## 1. Pipeline
-GT Excel -> clean (`01`) -> Sentinel-2 L2A monthly median composites Jun-Nov 2026, SCL cloud/shadow mask, 20 m, 10 bands + NDVI/EVI/NDWI/NDRE/NDMI + NDVI max/mean/std/amplitude/peak month (`02`) -> RF vs XGBoost with spatial-block CV (`03`) -> tiled prediction, probability/entropy rasters, area table (`04`) -> Streamlit app.
+Scope: model-based estimates for the area covered by the GT points (about 10% of the district). Not district-wide figures, not official statistics. Items marked [FILL] must be copied from outputs/ (05_make_report.py fills them automatically).
 
-## 2. GT findings (actual)
-* 323 rows, 5 columns (Latitude, Longitude, Crop, Crop type, Inter crop 1); no missing coordinates; 1 exact duplicate removed -> 322.
-* All 322 points lie inside the district; nearest is 11.3 km from the boundary, so edge mixed pixels are not a concern.
-* 12 points have a neighbour <20 m (same or adjacent pixel): kept but block-grouped in CV.
-* Label inconsistencies: `coconut`/`Coconut` (18 fixed), `Dragon`/`Dragonfruit`, `Horse`/`Horse gram`, `Promogrante` (assumed Pomegranate; need field-team confirmation). Intercrop column has 14 spellings.
-* Class counts: Maize 99, Ragi 74, Arecanut 66, Coconut 46, Banana 9, Cotton 7, Onion 5, Papaya 4, Dragonfruit 3, Horse gram 2, Chilli 2, Soybean 2, Basil 1, Pomegranate 1, Marigold 1.
-* **Spatial coverage: the GT convex hull is ~831 km2, 9.8% of the 8,435 km2 district.** Points form two clusters (within ~5 km linkage). Predictions elsewhere are extrapolation; the combined map should carry a GT-support/out-of-domain warning, and statistics must not be presented as district-wide estimates.
-* **Class scope:** only Maize, Ragi, Arecanut, Coconut (>=20 pts) are modelled. Arecanut and coconut are perennial plantations, so a seasonal time series separates them from Maize/Ragi easily but from each other poorly; expect that confusion.
-* **Missing negative class:** GT has no non-crop/fallow/forest/built-up points, so the classifier would label every pixel as one of the four crops. A cropland mask (e.g. ESA WorldCover, or an NDVI-based rule) is needed before area statistics mean anything. Not yet added.
+1. Pipeline
 
-## 3. Decisions (planned)
-Sentinel-2 only (SAR optional, deferred); pixel-based (no field boundaries available); monthly composites with at most 1-month linear gap-filling (monsoon cloud); classical ML (322 points, 4 usable classes); 3 km block GroupKFold; class-weighted RF/XGB; Streamlit for speed.
+GT Excel -> cleaning (01) -> Sentinel-2 L2A monthly median composites, Jun-Oct 2026 (Nov not yet available), SCL cloud/shadow mask, [FILL: 20/30] m grid, 1-month gap fill (02) -> 7 bands + NDVI, EVI, NDWI, NDRE, NDMI per month + NDVI max/mean/std/amplitude/peak month (03) -> Random Forest vs XGBoost, 3 km spatial-block CV, seed 42 -> classified map, confidence and entropy rasters, area table (04) -> Streamlit app (map, confidence toggle, area table, click query).
 
-## 4. Not yet done
-Run B-E; confirm labels; add cropland mask and out-of-domain flag; per-class metrics, confusion matrix, importance; uncertainty maps; app test; intercrop feasibility note (current evidence: 67 intercrop points, mostly arecanut/coconut with coconut or maize as companion - too sparse and 30 m-class mixing at 20 m resolution for a defensible map).
+2. Key decisions and trade-offs
+Sentinel-2 only: fastest to build; SAR (Sentinel-1) is the first addition for monsoon cloud gaps.
+Pixel-based: no field boundaries available; objects would reduce noise.
+Monthly composites, coarser pixels: fewer cloud gaps and lower compute, at the cost of phenology detail.
+Classical ML: about 280 labelled pixels is too few for deep learning; RF/XGBoost are cheap and interpretable.
+Spatial CV: stricter than random CV, avoids inflated accuracy from nearby correlated points.
+Streamlit on static GeoTIFFs: quick to deliver; no live inference or versioning.
+3. Results
 
-## 5. With more time/GT
-Stratified GT across the whole district (esp. Hagari/Tungabhadra belt and north), non-crop classes, field-boundary segmentation, Sentinel-1 for monsoon cloud, retraining and monitoring per season.
+GT: 323 rows, 1 duplicate removed, all 322 points inside the district. Label fixes: coconut/Coconut, Dragon, Horse, Promogrante (assumed Pomegranate). Only 4 classes have >= 20 samples and are mapped: Maize 99, Ragi 74, Arecanut 66, Coconut 46. The other 11 classes (<= 9 points each) are not mapped, and no result is claimed for them. GT gaps: points cover about 831 km² (9.8% of 8,435 km²), in two clusters. The rest of the district has no GT.
+
+Area (valid classified pixels inside the processed GT box):
+
+Class	ha	km²	% of valid classified
+Arecanut	51,129	511.3	21.4
+Coconut	30,856	308.6	12.9
+Maize	130,231	1,302.3	54.5
+Ragi	26,722	267.2	11.2
+Total	238,938	2,389.4	100
+
+Total valid classified area is about 2,389 km² (about 28% of the district), which equals the processed GT box including its buffer, i.e., larger than the 831 km² GT hull. Mean confidence per class is about 0.6 (confirm exact values in area_stats.csv).
+
+Maize takes 54.5% of mapped area although it is 35% of GT points: a sign that non-crop land is being forced into the crop classes. Masked/no-data area reported separately: [FILL] ha. Low-confidence area (max probability < 0.5): Meaning of area numbers: there is no non-crop class and no cropland mask, so every pixel was forced into one of four crops. The table is "area predicted as crop X", not cropped area. It is also not bias-corrected for classification error.
+
+4. Limitations and risks for another season or district
+
+Crop calendars, cloud cover, and labels change, so retraining with fresh GT is needed. Classes with little GT must not be reported. Results come from one season, one sensor and about 10% spatial coverage. Label noise and GPS error on small fields affect training.
+
+5. With two more weeks, more GT or a production mandate
+
+District-wide stratified GT with non-crop classes; cropland mask; Sentinel-1; field-boundary segmentation and field-level reporting; area-adjusted estimates with confidence intervals; multi-season retraining and monitoring; hosted, versioned app/API.
+
+6. Intercropping
+
+Not attempted. Only 67 intercrop points, with 14 spelling variants of the companion crop, no row-level information and mixed pixels at [FILL: 20/30] m. Needed: field labels with companion-crop fractions, <= 10 m imagery, and a separate validation set.
