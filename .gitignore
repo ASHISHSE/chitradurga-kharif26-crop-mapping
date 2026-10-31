@@ -2,7 +2,3 @@ venv/
 .venv/
 __pycache__/
 *.pyc
-outputs/feature_stack.zarr/
-outputs/gt_features.parquet
-outputs/gt_clean.csv
-data/GT_Data_Kharif26_Chitradurga.xlsx
